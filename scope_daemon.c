@@ -5,10 +5,29 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "scope_server.h"
+
+
+/**
+ * @brief Signal handler for server.
+ *
+ * @param sig - Signal No. provided by system
+ */
+void server_sig_handler(int sig)
+{
+	switch(sig) {
+	case SIGTERM:
+		server_stop();
+		break;
+	default:
+		break;
+	}
+}
+
 
 /**
  * @brief  Main function of whole server.
@@ -21,13 +40,18 @@ int main(void)
 {
 	pid_t pid, sid;
 	int fd;
+	struct sigaction sa;
 	char buff[16] = {0};
+
+	sa.sa_handler = server_sig_handler;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGTERM, &sa, NULL);
 
 	openlog("ScopeServer", LOG_PID | LOG_LOCAL0,  LOG_LOCAL0);
 
 	pid = fork();
 	if(pid < 0) {
-		syslog(LOG_ERR, "[ScopeServer]: Fork failed, daemon couldn't start! (errno = %d)\n", -errno);
+		syslog(LOG_ERR, "Fork failed, daemon couldn't start! (errno = %d)\n", -errno);
 		return EXIT_FAILURE;
 	} else if(pid > 0){
 		return EXIT_SUCCESS;
@@ -68,6 +92,17 @@ int main(void)
 		syslog(LOG_ERR, "Chdir failed! (errno = %d)\n", -errno);
 		return EXIT_FAILURE;
 	}
+	
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
+
+	if(server_init() < 0) {
+		syslog(LOG_ERR, "Unable to initizalize the server! (errno = %d)\n", -errno);
+		return EXIT_FAILURE;
+	}
+
+	server_start();
 
 	unlink(SCOPE_FILE_PID);
 	unlink(SCOPE_FILE_FIFO);
