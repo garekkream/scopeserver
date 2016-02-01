@@ -1,0 +1,3 @@
+[submodule "scopeproto"]
+	path = scopeproto
+	url = https://github.com/garekkream/scopeproto.git

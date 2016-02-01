@@ -10,15 +10,63 @@
 #include <sys/socket.h>
 
 #include "scope_server.h"
+#include "scope_handlers.h"
 
 #ifndef __VERSION_TAG
 	#define __VERSION_TAG		"unknown"
 #endif //__VERSION_TAG
 
+#define INDEX_SIZE			0
+#define INDEX_MSG_ID			1
+#define INDEX_DEV_ID			2
+#define INDEX_FLAGS			3
+#define INDEX_DATA			4
 
 static unsigned char server_status;
 static int socket_desc;
 static struct sockaddr_in serv;
+
+void *worker(void *data)
+{
+	int fd = open(SCOPE_FILE_FIFO, O_WRONLY);
+	int socket = *(int*)data;
+	int size = 0;
+	uint8_t buffer[SERVER_MAX_BUFFER] = {0x00};
+	ScopeMsgClientReq *request = NULL;
+
+	if((size = recv(socket, buffer, (SERVER_MAX_BUFFER - 1), 0)) < 0) {
+		syslog(LOG_ERR, "Failed to read data from the socket! (errno = %d)\n", -errno);
+		return NULL;
+	}
+
+	request = scope_msg_client_req__unpack(NULL, size, buffer);
+	if(request == NULL) {
+		syslog(LOG_ERR, "Failed to unpack received data!\n");
+		return NULL;
+	}
+
+	memset(buffer, 0x00, SERVER_MAX_BUFFER);
+	buffer[INDEX_SIZE] = 1;
+	buffer[INDEX_MSG_ID] = request->msg_id;
+	buffer[INDEX_SIZE] += 1;
+	buffer[INDEX_DEV_ID] = request->device_id;
+	if(request->has_payload_flags) {
+		buffer[INDEX_SIZE] += 1;
+		buffer[INDEX_FLAGS] = request->payload_flags & 0xF;
+	}
+	if(request->has_payload_data) {
+		buffer[INDEX_SIZE] += request->payload_data.len;
+		memcpy(&buffer[INDEX_DATA], request->payload_data.data, request->payload_data.len);
+	}
+
+	if(write(fd, buffer, (buffer[INDEX_SIZE] + 1)) < 0)
+		syslog(LOG_ERR, "Failed to write to fifo, message will be lost! (errno = %d)\n", -errno);
+
+	scope_msg_client_req__free_unpacked(request, NULL);
+	close(fd);
+
+	return NULL;
+}
 
 int server_init(void)
 {
@@ -62,7 +110,9 @@ int server_start(void)
 	syslog(LOG_INFO, "Server started! (Version =%s)\n", (char *)(__VERSION_TAG));
 
 	while((socket_new = accept(socket_desc, (struct sockaddr *)&serv, (socklen_t *)&(client_len))) && (server_status != SERVER_STATUS_STOPPED)) {
-	
+		pthread_t worker_id;
+
+		pthread_create(&worker_id, NULL, &worker, (void*)&socket_new);
 	}
 
 	syslog(LOG_INFO, "Exiting\n");
