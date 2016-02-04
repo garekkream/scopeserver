@@ -26,6 +26,30 @@ static unsigned char server_status;
 static int socket_desc;
 static struct sockaddr_in serv;
 
+static void print_dbg(const ScopeMsgClientReq *msg)
+{
+	char buffer[SERVER_MAX_BUFFER * 5] = {0x00};
+	int ret = 0;
+
+	ret += sprintf(&buffer[0], "MSG = id: 0x%02x (%d) ", msg->msg_id, msg->msg_id);
+	ret += sprintf(&buffer[ret], "device_id: 0x%02x (%d) ", msg->device_id, msg->device_id);
+	if(msg->has_payload_flags)
+		ret += sprintf(&buffer[ret], "flags: 0x%02x (%d) ", msg->payload_flags, msg->payload_flags);
+	if(msg->has_payload_data) {
+		size_t i = 0;
+		ret += sprintf(&buffer[ret], "data: ");
+		for(i = 0; i < msg->payload_data.len; i++) {
+			if(ret < (SERVER_MAX_BUFFER * 5))
+				ret += sprintf(&buffer[ret], "0x%02x ", *(msg->payload_data.data + i));
+		}
+
+		ret += sprintf(&buffer[ret], "(%s)", msg->payload_data.data);
+	}
+
+	syslog(LOG_INFO, "%s\n", buffer);
+
+}
+
 void *worker(void *data)
 {
 	int fd = open(SCOPE_FILE_FIFO, O_WRONLY);
@@ -45,6 +69,7 @@ void *worker(void *data)
 		return NULL;
 	}
 
+	print_dbg(request);
 	memset(buffer, 0x00, SERVER_MAX_BUFFER);
 	buffer[INDEX_SIZE] = 1;
 	buffer[INDEX_MSG_ID] = request->msg_id;
