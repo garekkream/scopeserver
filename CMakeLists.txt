@@ -3,7 +3,7 @@ project (ScopeServer)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake/)
 
-include_directories(./ scopeproto)
+include_directories(./ scopeproto ${PROTOBUFC_INCLUDE_DIRS} )
 
 add_subdirectory(scopeproto)
 
@@ -20,4 +20,4 @@ find_package( ProtobufC REQUIRED )
 SET(CMAKE_C_FLAGS "-O0 -ggdb3 -Wall -Wextra -Wno-missing-braces -Wno-missing-field-initializers -Wformat=2 -Wswitch-enum -Wpointer-arith -Wbad-function-cast -Wstrict-overflow=5 -Wstrict-prototypes -Winline -Wundef -Wnested-externs -Wcast-qual -Wshadow -Wunreachable-code -Wfloat-equal -Wstrict-aliasing=2 -Werror -fno-common -fno-strict-aliasing -fno-omit-frame-pointer -pedantic -Wno-language-extension-token -Wno-gnu-statement-expression -std=gnu99 -D__VERSION")
 
 add_executable(scope_server ${SOURCES})
-target_link_libraries(scope_server scopeproto ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(scope_server scopeproto ${PROTOBUFC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
