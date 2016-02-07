@@ -1,0 +1,6 @@
+#ifndef SCOPE_HANDLERS_MAP_H
+#define SCOPE_HANDLERS_MAP_H
+
+SCOPE_HANDLER(0,		handler_dummy,			HANDLER_THREAD)
+
+#endif //SCOPE_HANDLERS_MAP_H

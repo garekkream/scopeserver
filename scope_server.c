@@ -26,6 +26,8 @@ static unsigned char server_status;
 static int socket_desc;
 static struct sockaddr_in serv;
 
+extern struct handler_data handlers[];
+
 static void print_dbg(const ScopeMsgClientReq *msg)
 {
 	char buffer[SERVER_MAX_BUFFER * 5] = {0x00};
@@ -93,6 +95,78 @@ void *worker(void *data)
 	return NULL;
 }
 
+void *consumer(__attribute__((unused)) void *data)
+{
+	char buffer[SERVER_MAX_BUFFER] = {0x00};
+	char msg_size = 0;
+	int fd = open(SCOPE_FILE_FIFO, O_RDONLY);
+
+	if(fd < 0) {
+		syslog(LOG_ERR, "Failed to open fifo file! (errno = %d)\n", -errno);
+		return NULL;
+	}
+
+	while(server_status != SERVER_STATUS_STOPPED) {
+		if(read(fd, &msg_size, 1)) {
+			memset(buffer, 0x00, SERVER_MAX_BUFFER - 1);
+			
+			if(read(fd, buffer, msg_size)) {
+				struct fifo_data *fdata = NULL;
+				
+				fdata = (struct fifo_data *) malloc(sizeof(struct fifo_data));
+
+				if(fdata != NULL) {
+					memset(fdata, 0x00, sizeof(struct fifo_data));
+				
+					fdata->msg_id	= buffer[0];
+					fdata->dev_id	= buffer[1];
+					fdata->flags	= buffer[2];
+					memcpy(&(fdata->payload), &(buffer[3]), (msg_size - 2));
+
+					if((fdata->msg_id < get_handlers_size())
+					   && (handlers[fdata->msg_id].id == fdata->msg_id)
+					   && (handlers[fdata->msg_id].handler != NULL)) {
+						
+						syslog(LOG_INFO, "0x%x 0x%x 0x%x %s", fdata->msg_id, fdata->dev_id, fdata->flags, fdata->payload);
+
+						if(handlers[fdata->msg_id].hdata == HANDLER_NO_THREAD) {
+							handlers[fdata->msg_id].handler(fdata);
+							if(fdata) {
+								free(fdata);
+								fdata = NULL;
+							}
+						} else {
+							pthread_t id;
+							pthread_attr_t attr;
+
+							pthread_attr_init(&attr);
+							pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+							syslog(LOG_INFO, "Starting thread for id = %d!\n", fdata->msg_id);
+							pthread_create(&id, &attr, handlers[fdata->msg_id].handler, (void *)fdata);
+						}
+					 } else {
+						if(fdata != NULL) {
+							free(fdata);
+							fdata = NULL;
+						}
+
+						syslog(LOG_ERR, "Failed to start handler! (id = %d [max id = %lu])", buffer[0], (get_handlers_size() -1));
+					 }
+				} else {
+					syslog(LOG_ERR, "Failed to allocate memory for handler! (id = %d)\n", buffer[0]);
+					return NULL;
+				}
+			}
+		}
+		sleep(1);
+	}
+	close(fd);
+	syslog(LOG_INFO, "Consumer stopped\n");
+
+	return NULL;
+}
+
 int server_init(void)
 {
 	if(server_status != SERVER_STATUS_STOPPED) {
@@ -129,8 +203,11 @@ int server_start(void)
 	struct sockaddr_in client;
 	int socket_new;
 	int client_len = sizeof(client);
+	pthread_t consumer_id;
 
 	server_status = SERVER_STATUS_RUNNING;
+
+	pthread_create(&consumer_id, NULL, &consumer, NULL);
 
 	syslog(LOG_INFO, "Server started! (Version =%s)\n", (char *)(__VERSION_TAG));
 
@@ -139,6 +216,8 @@ int server_start(void)
 
 		pthread_create(&worker_id, NULL, &worker, (void*)&socket_new);
 	}
+
+	pthread_join(consumer_id, NULL);
 
 	syslog(LOG_INFO, "Exiting\n");
 
