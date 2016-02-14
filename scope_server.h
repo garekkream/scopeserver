@@ -16,4 +16,6 @@ extern int server_init(void);
 extern int server_start(void);
 extern void server_stop(void);
 
+extern void scope_send_msg(int id, int dev_id, int flags, char *payload, int size);
+
 #endif //SCOPE_SERVER_H

@@ -52,6 +52,41 @@ static void print_dbg(const ScopeMsgClientReq *msg)
 
 }
 
+void scope_send_msg(int id, int dev_id, int flags, char *payload, int size)
+{
+	ScopeMsgServerRes response = SCOPE_MSG_SERVER_RES__INIT;
+	void *buffer;
+	int len = 0;
+	int socket = 0;
+
+	(void)socket;
+
+	response.id = (ScopeMsgServerRes__ScopeMsgIdRes)id;
+
+	response.device_id = dev_id;
+
+	if(flags != 0x00) {
+		response.payload_flags = flags;
+		response.has_payload_flags = 1;
+	}
+
+	if((payload != NULL) && (size > 0)) {
+		response.payload_data.data = (unsigned char *)payload;
+		response.payload_data.len = size;
+		response.has_payload_data = 1;
+	}
+
+	len = scope_msg_server_res__get_packed_size(&response);
+
+	buffer = malloc(len);
+
+	scope_msg_server_res__pack(&response, buffer);
+
+	//find_socket_by_device_id
+
+	free(buffer);
+}
+
 void *worker(void *data)
 {
 	int fd = open(SCOPE_FILE_FIFO, O_WRONLY);
