@@ -31,6 +31,7 @@ static int find_free_id(void);
 static int extract_register_data(const char *in_data, char *out_data);
 static int extract_ip_from_socket(int socket, char *out_data);
 static int register_response(int dev_id);
+static void print_devices(void);
 
 struct register_data {
 	struct list_head list;
@@ -114,6 +115,24 @@ static int register_response(int dev_id)
 	}
 
 	return 0;
+}
+
+static void print_devices(void)
+{
+	struct list_head *pos, *q;
+
+	syslog(LOG_INFO, "Devices list: ");
+	syslog(LOG_INFO, "=============================");
+
+	list_for_each_safe(pos, q, &devices_list) {
+		struct register_data *dev = list_entry(pos, struct register_data, list);
+
+		syslog(LOG_INFO, "Device id: %d", dev->id);
+		syslog(LOG_INFO, "Device name: %s", dev->name);
+		syslog(LOG_INFO, "Device sw_ver: %s", dev->sw_ver);
+		syslog(LOG_INFO, "Device socket: %d", dev->socket);
+		syslog(LOG_INFO, "Device IP: %s", dev->client_ip);
+	}
 }
 
 int find_socket_by_devid(int dev_id)
@@ -203,6 +222,7 @@ void *handler_register(void *data)
 		devices_cnt++;
 
 		register_response(dev->id);
+		print_devices();
 
 		return NULL;
 
