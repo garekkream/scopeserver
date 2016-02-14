@@ -176,6 +176,31 @@ int register_init(void)
 	return 0;
 }
 
+int register_cleanup(void)
+{
+	struct list_head *pos, *q;
+
+	list_for_each_safe(pos, q, &devices_list) {
+		struct register_data *dev = list_entry(pos, struct register_data, list);
+
+		list_del(pos);
+
+		free(dev);
+		dev = NULL;
+
+		devices_cnt--;
+	}
+
+	if(devices_cnt != 0) {
+		syslog(LOG_ERR, "Something went wrong! Devices counter is not 0!");
+		return -EINVAL;
+	}
+
+	syslog(LOG_INFO, "Registration data cleaned up!");
+
+	return 0;
+}
+
 void *handler_register(void *data)
 {
 	struct fifo_data hdata = *(struct fifo_data*)data;

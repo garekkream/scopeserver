@@ -261,6 +261,7 @@ int server_start(void)
 
 	pthread_join(consumer_id, NULL);
 
+	register_cleanup();
 	syslog(LOG_INFO, "Exiting\n");
 
 	return 0;
