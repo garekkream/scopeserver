@@ -1,6 +1,8 @@
 #ifndef SCOPE_HANDLERS_H
 #define SCOPE_HANDLERS_H
 
+#include "scope_handlers_register.h"
+
 #define HNDL_MAX_BUFFER			80
 
 enum handler_option {

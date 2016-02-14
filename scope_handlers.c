@@ -3,7 +3,6 @@
 #include "scope_server.h"
 #include "scope_handlers.h"
 
-
 void *handler_dummy(void *data);
 
 void *handler_dummy(void *data)

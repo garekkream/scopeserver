@@ -11,6 +11,7 @@
 
 #include "scope_server.h"
 #include "scope_handlers.h"
+//#include "scope_handlers_register.h"
 
 #ifndef __VERSION_TAG
 	#define __VERSION_TAG		"unknown"
@@ -52,14 +53,13 @@ static void print_dbg(const ScopeMsgClientReq *msg)
 
 }
 
-void scope_send_msg(int id, int dev_id, int flags, char *payload, int size)
+int scope_send_msg(int id, int dev_id, int flags, char *payload, int size)
 {
 	ScopeMsgServerRes response = SCOPE_MSG_SERVER_RES__INIT;
 	void *buffer;
 	int len = 0;
 	int socket = 0;
-
-	(void)socket;
+	int ret = 0;
 
 	response.id = (ScopeMsgServerRes__ScopeMsgIdRes)id;
 
@@ -82,9 +82,16 @@ void scope_send_msg(int id, int dev_id, int flags, char *payload, int size)
 
 	scope_msg_server_res__pack(&response, buffer);
 
-	//find_socket_by_device_id
+	socket = find_socket_by_devid(dev_id);
+
+	if(write(socket, buffer, len) < 0) {
+		syslog(LOG_ERR, "Failed to send message to client! (errno = %d, socket = %d, msg_id = %d, dev_id = %d)", -errno, socket, id, dev_id);
+		ret =  -errno;
+	}
 
 	free(buffer);
+
+	return ret;
 }
 
 void *worker(void *data)

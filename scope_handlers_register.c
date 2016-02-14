@@ -30,6 +30,7 @@ LIST_HEAD(devices_list);
 static int find_free_id(void);
 static int extract_register_data(const char *in_data, char *out_data);
 static int extract_ip_from_socket(int socket, char *out_data);
+static int register_response(int dev_id);
 
 struct register_data {
 	struct list_head list;
@@ -93,6 +94,40 @@ static int extract_ip_from_socket(int socket, char *out_data)
 	strcpy(out_data, inet_ntoa(addr.sin_addr));
 
 	return strlen((const char *)out_data) ? 0 : -ENODATA;
+}
+
+static int register_response(int dev_id)
+{
+	int flags = 0x00;
+	char buffer[SERVER_MAX_BUFFER] = {0x00};
+	char size = 0;
+	
+	flags |= SCOPE_MSG_SERVER_RES__SCOPE_REGISTER_FLAGS_RES__SERVER_SW_VER;
+	size = strlen((const char *)__VERSION_TAG);
+	buffer[0] = size;
+	
+	memcpy(&(buffer[1]), (const char *)__VERSION_TAG, size);
+
+	if(scope_send_msg(SCOPE_MSG_SERVER_RES__SCOPE_MSG_ID_RES__SCOPE_MSGID_REGISTER_RES, dev_id, flags, buffer, size + 1) < 0) {
+		syslog(LOG_ERR, "Failed to send registration response! (dev_id = %d, errno = %d)", dev_id, -errno);
+		return -errno;
+	}
+
+	return 0;
+}
+
+int find_socket_by_devid(int dev_id)
+{
+	struct list_head *pos, *q;
+
+	list_for_each_safe(pos, q, &devices_list) {
+		struct register_data *dev = list_entry(pos, struct register_data, list);
+
+		if(dev->id == dev_id)
+			return dev->socket;
+	}
+
+	return -EINVAL;
 }
 
 int register_init(void)
@@ -166,6 +201,8 @@ void *handler_register(void *data)
 
 		list_add(&(dev->list), &devices_list);
 		devices_cnt++;
+
+		register_response(dev->id);
 
 		return NULL;
 
