@@ -235,11 +235,17 @@ int server_init(void)
 		return -EALREADY;
 	}
 
+	if(register_init() < 0) {
+		syslog(LOG_ERR, "Server was not able to initialize registration data!\n");
+		return -EFAULT;
+	}
+
 	server_status = SERVER_STATUS_STOPPED;
 
 	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
 	if(socket_desc < 0) {
 		syslog(LOG_ERR, "Cannot create socket descriptor! Initialization failed!\n");
+		register_cleanup();
 		return -EINVAL;
 	}
 
@@ -248,7 +254,8 @@ int server_init(void)
 	serv.sin_port = htons(6633);
 
 	if(bind(socket_desc, (struct sockaddr *)&serv, sizeof(serv)) < 0) {
-		syslog(LOG_ERR, "Cannot bind to port! Initialization failde!\n");
+		syslog(LOG_ERR, "Cannot bind to port! Initialization failed!\n");
+		register_cleanup();
 		return -EINVAL;
 	}
 
