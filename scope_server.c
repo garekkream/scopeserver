@@ -128,6 +128,25 @@ void *worker(void *data)
 		memcpy(&buffer[INDEX_DATA], request->payload_data.data, request->payload_data.len);
 	}
 
+	if(request->msg_id == SCOPE_MSG_CLIENT_REQ__SCOPE_MSG_ID_REQ__SCOPE_MSGID_REGISTER_REQ) {
+		char temp_buff[20] = {0x00};
+		int pos = 0;
+
+		if(request->has_payload_data)
+			pos = request->payload_data.len;
+
+		sprintf(&(temp_buff[1]), "%d", socket);
+		temp_buff[0] = strlen(&(temp_buff[1]));
+
+		memcpy(&(buffer[INDEX_DATA +  pos]), temp_buff, (temp_buff[0] + 1));
+		buffer[INDEX_SIZE] += (temp_buff[0] + 1);
+	}
+
+	if(fd < 0) {
+		syslog(LOG_ERR, "Failed to open fifo file!\n");
+		return NULL;
+	}
+
 	if(write(fd, buffer, (buffer[INDEX_SIZE] + 1)) < 0)
 		syslog(LOG_ERR, "Failed to write to fifo, message will be lost! (errno = %d)\n", -errno);
 

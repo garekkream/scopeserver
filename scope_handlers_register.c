@@ -20,6 +20,8 @@
 
 #define STATUS_ID_NOTFOUND		0
 #define STATUS_ID_FOUND			1
+#define STATUS_DEV_NOTFOUND		2
+#define STATUS_DEV_FOUND		3
 
 #ifndef __VERSION_TAG
 	#define __VERSION_TAG		"unknown"
@@ -263,5 +265,43 @@ fail_extraction:
 	}
 
 	syslog(LOG_ERR, "Failed to add new device! List is full!");
+	return NULL;
+}
+
+void *handler_deregister(void *data)
+{
+	struct fifo_data hdata = *(struct fifo_data*)data;
+	struct list_head *pos, *q;
+	char status = STATUS_DEV_NOTFOUND;
+
+	syslog(LOG_INFO, "Started handler %s (id = %d)", __func__, hdata.msg_id);
+
+	list_for_each_safe(pos, q, &devices_list) {
+		struct register_data *dev = list_entry(pos, struct register_data, list);
+
+		if(hdata.dev_id == dev->id) {
+			if(scope_send_msg(SCOPE_MSG_SERVER_RES__SCOPE_MSG_ID_RES__SCOPE_MSGID_UNREGISTER_RES, dev->id, 0x00, NULL, 0)) {
+				syslog(LOG_ERR, "Failed to send unregister message! (dev_id = %d)", dev->id);
+				return NULL;
+			}
+
+			close(dev->socket);
+
+			list_del(pos);
+
+			free(dev);
+			dev = NULL;
+
+			devices_cnt--;
+
+			status = STATUS_DEV_FOUND;
+		}
+	}
+
+	if(status != STATUS_DEV_FOUND)
+		syslog(LOG_ERR, "Unable to remove device from the list! Unknown ID! (devid = %d)", hdata.dev_id);
+	else
+		syslog(LOG_INFO, "Device sucessfuly unregistered!");
+
 	return NULL;
 }
