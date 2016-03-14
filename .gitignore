@@ -5,3 +5,5 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile
 CMakeFiles
+.gdb_history
+scope_server

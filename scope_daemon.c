@@ -40,6 +40,7 @@ int main(void)
 {
 	pid_t pid, sid;
 	int fd;
+	int ret = 0;
 	struct sigaction sa;
 	char buff[16] = {0};
 
@@ -73,40 +74,46 @@ int main(void)
 	fd = open(SCOPE_FILE_PID, O_CREAT | O_WRONLY);
 	if(fd <0) {
 		syslog(LOG_ERR, "Couldn't create pid file! (errno = %d)\n", -errno);
-		return EXIT_FAILURE;
+		ret = EXIT_FAILURE;
+		goto init_fail;
 	}
 
 	if(write(fd, buff, strlen(buff)+1) < 0) {
 		syslog(LOG_ERR, "Couldn't save pid file for ScopeServer! (errno = %d)\n", -errno);
 		close(fd);
-		return EXIT_FAILURE;
+		ret = EXIT_FAILURE;
+		goto init_fail;
 	}
 	close(fd);
 
 	if(mkfifo(SCOPE_FILE_FIFO, O_RDWR) < 0) {
 		syslog(LOG_ERR, "Couldn't create fifo file: %s! (errno = %d)\n", SCOPE_FILE_FIFO, -errno);
-		return EXIT_FAILURE;
+		ret = EXIT_FAILURE;
+		goto init_fail;
 	}
 
 	if(chdir("/") < 0) {
 		syslog(LOG_ERR, "Chdir failed! (errno = %d)\n", -errno);
-		return EXIT_FAILURE;
+		ret = EXIT_FAILURE;
+		goto init_fail;
 	}
-	
+
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
 
 	if(server_init() < 0) {
 		syslog(LOG_ERR, "Unable to initizalize the server! (errno = %d)\n", -errno);
-		return EXIT_FAILURE;
+		ret = EXIT_FAILURE;
+		goto init_fail;
 	}
 
 	server_start();
 
-	unlink(SCOPE_FILE_PID);
+init_fail:
 	unlink(SCOPE_FILE_FIFO);
+	unlink(SCOPE_FILE_PID);
 	closelog();
 
-	return 0;
+	return ret;
 }
