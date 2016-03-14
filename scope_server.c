@@ -277,7 +277,7 @@ int server_start(void)
 
 	pthread_create(&consumer_id, NULL, &consumer, NULL);
 
-	syslog(LOG_INFO, "Server started! (Version =%s)\n", (char *)(__VERSION_TAG));
+	syslog(LOG_INFO, "Server started! (Version = %s)\n", (char *)(__VERSION_TAG));
 
 	while((socket_new = accept(socket_desc, (struct sockaddr *)&serv, (socklen_t *)&(client_len))) && (server_status != SERVER_STATUS_STOPPED)) {
 		pthread_t worker_id;
