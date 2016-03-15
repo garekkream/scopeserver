@@ -90,6 +90,9 @@ int scope_send_msg(int id, int dev_id, int flags, char *payload, int size)
 	}
 
 	free(buffer);
+	
+	close(socket);
+	update_socket_by_devid(dev_id, DEFAULT_SOCKET);
 
 	return ret;
 }
@@ -281,7 +284,7 @@ int server_start(void)
 
 	syslog(LOG_INFO, "Server started! (Version = %s)\n", (char *)(__VERSION_TAG));
 
-	while((socket_new = accept(socket_desc, (struct sockaddr *)&serv, (socklen_t *)&(client_len))) && (server_status != SERVER_STATUS_STOPPED)) {
+	while((server_status != SERVER_STATUS_STOPPED) && (socket_new = accept(socket_desc, (struct sockaddr *)&serv, (socklen_t *)&(client_len))))  {
 		pthread_t worker_id;
 
 		pthread_create(&worker_id, NULL, &worker, (void*)&socket_new);

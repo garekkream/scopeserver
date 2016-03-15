@@ -12,6 +12,8 @@
 
 #define SERVER_MAX_BUFFER	80
 
+#define DEFAULT_SOCKET		-1
+
 extern int server_init(void);
 extern int server_start(void);
 extern void server_stop(void);

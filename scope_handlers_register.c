@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #include "scope_server.h"
 #include "scope_handlers.h"
@@ -45,7 +46,9 @@ struct register_data {
 	int socket;
 };
 
-static int devices_cnt;
+static volatile int devices_cnt;
+
+static pthread_mutex_t mutex_register = PTHREAD_MUTEX_INITIALIZER;
 
 static int find_free_id(void)
 {
@@ -159,7 +162,6 @@ int update_socket_by_devid(int dev_id, int new_socket)
 		struct register_data *dev = list_entry(pos, struct register_data, list);
 
 		if(dev->id == dev_id) {
-			syslog(LOG_INFO, "Old socket: %d, New socket: %d", dev->socket, new_socket);
 			dev->socket = new_socket;
 			return 0;
 		}
@@ -228,6 +230,7 @@ void *handler_register(void *data)
 	syslog(LOG_INFO, "Started handler %s (id = %d)", __func__, hdata.msg_id);
 
 	if(devices_cnt < MAX_REG_DEVICES) {
+		pthread_mutex_lock(&mutex_register);
 		struct register_data *dev = (struct register_data *)malloc(sizeof(struct register_data));
 
 		if(!dev) {
@@ -268,6 +271,8 @@ void *handler_register(void *data)
 		register_response(dev->id);
 		print_devices();
 
+		pthread_mutex_unlock(&mutex_register);
+
 		return NULL;
 
 fail_extraction:
@@ -297,6 +302,8 @@ void *handler_deregister(void *data)
 		struct register_data *dev = list_entry(pos, struct register_data, list);
 
 		if(hdata.dev_id == dev->id) {
+			pthread_mutex_lock(&mutex_register);
+
 			if(scope_send_msg(SCOPE_MSG_SERVER_RES__SCOPE_MSG_ID_RES__SCOPE_MSGID_UNREGISTER_RES, dev->id, 0x00, NULL, 0)) {
 				syslog(LOG_ERR, "Failed to send unregister message! (dev_id = %d)", dev->id);
 				return NULL;
@@ -312,6 +319,8 @@ void *handler_deregister(void *data)
 			devices_cnt--;
 
 			status = STATUS_DEV_FOUND;
+
+			pthread_mutex_unlock(&mutex_register);
 		}
 	}
 
