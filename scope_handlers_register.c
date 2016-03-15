@@ -151,6 +151,23 @@ int find_socket_by_devid(int dev_id)
 	return -EINVAL;
 }
 
+int update_socket_by_devid(int dev_id, int new_socket)
+{
+	struct list_head *pos, *q;
+
+	list_for_each_safe(pos, q, &devices_list) {
+		struct register_data *dev = list_entry(pos, struct register_data, list);
+
+		if(dev->id == dev_id) {
+			syslog(LOG_INFO, "Old socket: %d, New socket: %d", dev->socket, new_socket);
+			dev->socket = new_socket;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 int register_init(void)
 {
 	struct register_data *dev = NULL;

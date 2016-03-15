@@ -140,6 +140,8 @@ void *worker(void *data)
 
 		memcpy(&(buffer[INDEX_DATA +  pos]), temp_buff, (temp_buff[0] + 1));
 		buffer[INDEX_SIZE] += (temp_buff[0] + 1);
+	} else {
+		update_socket_by_devid(request->device_id, socket);
 	}
 
 	if(fd < 0) {
